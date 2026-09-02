@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Assignment #3: Next Gen Rendering (PBR Shader)</title>
+    <title>Assignment #3: Next Gen Rendering </title>
     <style>
         body {
             margin: 0;
@@ -12,7 +12,7 @@
             background-color: #05050a;
         }
 
-        /* Glassmorphism Instruction Overlay */
+      
         #info {
             position: absolute;
             top: 25px;
@@ -34,7 +34,7 @@
             z-index: 10;
         }
 
-        /* Custom Styling for lil-gui (Futuristic Clean UI) */
+        
         .lil-gui {
             --background-color: rgba(10, 15, 28, 0.85) !important;
             --text-color: #e0f7fc !important;
@@ -95,22 +95,16 @@
 </head>
 
 <body>
-    <div id="info">
-        <b style="color: #00f0ff; font-size: 14px;">⚡ CONTROLS HUD</b><br>
-        🖱️ <b>Mouse Light:</b> ขยับ Mouse เพื่อเปลี่ยนทิศทางแสงไฟ<br>
-        🎥 <b>Camera:</b> คลิกซ้าย (หมุน) | คลิกขวา (เลื่อน) | Scroll (ย่อ-ขยาย)
-    </div>
-
-    <!-- Core Three.js and Libraries -->
+    
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
-    <!-- Modern lil-gui Library -->
+   
     <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.18"></script>
 
     <script>
-        // 1. Renderer Setup
+       
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -120,7 +114,7 @@
         renderer.toneMappingExposure = 1.0;
         document.body.appendChild(renderer.domElement);
 
-        // 2. Scene & Camera Setup
+       
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(
             60,
@@ -134,7 +128,7 @@
         controls.enableDamping = true;
         controls.target.set(0, 1.2, 0);
 
-        // 3. Lighting Setup
+    
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
         scene.add(ambientLight);
 
@@ -148,7 +142,7 @@
         const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 1);
         scene.add(lightHelper);
 
-        // 4. Load EXR Skybox (Poly Haven EXR Sunset)
+        
         const exrSkyboxUrl = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/venice_sunset_1k.exr';
         const pmremGenerator = new THREE.PMREMGenerator(renderer);
         pmremGenerator.compileEquirectangularShader();
@@ -165,7 +159,7 @@
             console.error('Error loading EXR:', err);
         });
 
-        // 5. Ground Floor with PBR Texture
+        
         const textureLoader = new THREE.TextureLoader();
         const texFloor = textureLoader.load('https://sibsansuk.github.io/mossy_cobblestone_diff_1k.jpg');
         texFloor.wrapS = THREE.RepeatWrapping;
@@ -184,7 +178,7 @@
         plane.receiveShadow = true;
         scene.add(plane);
 
-        // 6. Colored PBR Structures & Rocks
+       
         const texStone = textureLoader.load('https://sibsansuk.github.io/mossy_cobblestone_diff_1k.jpg');
         texStone.wrapS = THREE.RepeatWrapping;
         texStone.wrapT = THREE.RepeatWrapping;
@@ -262,7 +256,7 @@
             scene.add(pillarGroup);
         }
 
-        // โหลดโมเดล Sakura สำหรับใช้แทนต้นไม้ทั้ง 2 ข้าง
+        
         const gltfLoader2 = new THREE.GLTFLoader();
         gltfLoader2.load('https://cdn.jsdelivr.net/gh/chayaponsaenthavee/Ball@main/sakura.glb', (gltf) => {
             const sakuraLeft = gltf.scene;
@@ -275,15 +269,15 @@
                     }
                 }
             });
-            // ปรับตำแหน่งและขนาด Sakura ต้นซ้าย
+          
             sakuraLeft.position.set(-4, -0.25, 3);
             sakuraLeft.scale.set(2.2, 2.2, 2.2);
             scene.add(sakuraLeft);
 
-            // คลอนโมเดลวาง Sakura ต้นขวา
+           
             const sakuraRight = sakuraLeft.clone();
             sakuraRight.position.set(4, -0.25, 3);
-            sakuraRight.rotation.y = Math.PI / 2; // หมุนมุมองศาให้ออกมาเป็นธรรมชาติ
+            sakuraRight.rotation.y = Math.PI / 2; 
             scene.add(sakuraRight);
         });
 
@@ -298,7 +292,7 @@
         createPBRRock(-1.8, 3.2, 1.0, 0.7, 0.9, 1.5);
         createPBRRock(2.2, 3.5, 1.2, 0.8, 1.0, 2.8);
 
-        // 7. Main Character Model
+     
         let mainModel;
         const gltfLoader = new THREE.GLTFLoader();
         gltfLoader.load('https://cdn.jsdelivr.net/gh/chayaponsaenthavee/Ball@main/anime15.glb', (gltf) => {
@@ -318,7 +312,7 @@
             scene.add(mainModel);
         });
 
-        // 8. Interaction: ปรับตำแหน่งแสงตาม Mouse
+      
         let enableMouseLight = true;
         window.addEventListener('mousemove', (event) => {
             if (!enableMouseLight) return;
@@ -330,10 +324,10 @@
             lightHelper.update();
         });
 
-        // 9. Modern GUI Controls
-        const gui = new lil.GUI({ title: '⚙️ PBR CONTROL PANEL' });
+
+        const gui = new lil.GUI({ title: ' PBR CONTROL PANEL' });
         
-        const lightFolder = gui.addFolder('💡 LIGHT SOURCE');
+        const lightFolder = gui.addFolder(' LIGHT SOURCE');
         lightFolder.add({ mouseControl: true }, 'mouseControl').name('Mouse Tracking').onChange((val) => {
             enableMouseLight = val;
         });
@@ -343,14 +337,13 @@
         lightFolder.add(directionalLight, 'intensity', 0, 5, 0.1).name('Intensity');
         lightFolder.open();
 
-        // 10. Window Resize Handler
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // 11. Animation Loop
+       
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
