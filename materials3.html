@@ -12,7 +12,7 @@
 </head>
 
 <body>
-    <!-- core three.js -->
+  
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
@@ -39,7 +39,7 @@
         camera.lookAt(0, 0, 0);
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-        const abmientLight = new THREE.AmbientLight(0x404040, 1); // soft white light
+        const abmientLight = new THREE.AmbientLight(0x404040, 1); 
         scene.add(abmientLight);
 
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
@@ -66,15 +66,15 @@
 
         let githubModel = null;
 
-        // ตั้งค่า DRACOLoader
+        
         const dracoLoader = new THREE.DRACOLoader();
         dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.3/');
 
-        // ตั้งค่า GLTFLoader พร้อมผูก Draco
+  
         const loader = new THREE.GLTFLoader();
         loader.setDRACOLoader(dracoLoader);
 
-        // ดึงไฟล์โดยตรงจาก GitHub Media URL
+    
         loader.load('https://media.githubusercontent.com/media/chayaponsaenthavee/Ball/main/Store9.glb', (gltf) => {
             githubModel = gltf.scene;
             githubModel.traverse((child) => {
