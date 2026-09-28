@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>3D Model - Bar</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+            font-family: 'Sarabun', 'Segoe UI', sans-serif
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh
+        }
+
+        #infoPanel {
+            display: none;
+            position: fixed;
+            top: 50%;
+            right: 30px;
+            transform: translateY(-50%);
+            width: 300px;
+            max-width: 80vw;
+            background: rgba(20, 20, 20, .92);
+            border: 1px solid rgba(255, 255, 255, .15);
+            border-radius: 14px;
+            padding: 20px;
+            color: #fff;
+            z-index: 20;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .4)
+        }
+
+        #infoPanel h2 {
+            margin: 0 0 10px;
+            font-size: 18px;
+            color: #ff5a5f
+        }
+
+        #infoPanel p {
+            margin: 4px 0;
+            font-size: 14px;
+            line-height: 1.5;
+            opacity: .9
+        }
+
+        #infoPanel button {
+            margin-top: 14px;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 8px;
+            background: #333;
+            color: #fff;
+            cursor: pointer
+        }
+
+        #infoPanel button:hover {
+            background: #555
+        }
+
+        #hint {
+            position: fixed;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, .55);
+            font-size: 13px;
+            z-index: 5;
+            pointer-events: none;
+            text-align: center
+        }
+
+        #debugBox {
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            background: rgba(0, 0, 0, .6);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 13px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            z-index: 30;
+            display: none
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="hint">รอซักครู่ โมเดลกำลังโหลด...</div>
+    <div id="debugBox"></div>
+
+    <div id="infoPanel">
+        <div id="infoPanelContent"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+
+    <script>
+        const CURTAIN_OBJECT_NAMES = [
+            "Plane041", "Plane.041", "Plane045", "Plane.045",
+            "Plane062", "Plane.062", "Plane063", "Plane.063",
+            "Plane064", "Plane.064", "Plane065", "Plane.065",
+            "Plane066", "Plane.066", "Plane067", "Plane.067",
+            "Plane068", "Plane.068", "Plane069", "Plane.069",
+            "Plane070", "Plane.070", "Plane071", "Plane.071",
+            "Plane072", "Plane.072", "Plane073", "Plane.073",
+            "Plane074", "Plane.074", "Plane075", "Plane.075",
+            "Plane076", "Plane.076", "Plane077", "Plane.077",
+            "Plane078", "Plane.078", "Plane079", "Plane.079"
+        ];
+
+        const EXCLUDE_NAMES = [];
+
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xfffdd0);
+
+        const camera = new THREE.PerspectiveCamera(
+            45,
+            innerWidth / innerHeight,
+            0.01,
+            1000
+        );
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = .08;
+
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+
+        const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x222222, 0.3);
+        hemisphereLight.position.set(0, 50, 0);
+        scene.add(hemisphereLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2.3);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = .1;
+        directionalLight.shadow.camera.far = 100;
+        directionalLight.shadow.bias = -.0005;
+        directionalLight.shadow.normalBias = .02;
+        scene.add(directionalLight);
+
+        const fillLight = new THREE.DirectionalLight(0x99bbff, .35);
+        fillLight.position.set(-10, 5, -5);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0xffffff, .45);
+        rimLight.position.set(0, 8, -12);
+        scene.add(rimLight);
+
+
+        const uniforms = {
+            uTime: { value: 0.0 },
+            uLightDir: { value: new THREE.Vector3(10, 20, 10).normalize() }
+        };
+
+        const OUTLINE_WIDTH = 0.01;
+
+
+        const curtainVertexShader = `
+    uniform float uTime;
+    uniform float uMinY;
+    uniform float uRange;
+    uniform float uOffset;
+
+    varying vec2 vUv;
+    varying vec3 vNormal;
+
+    void main() {
+      vUv = uv;
+      vNormal = normalize(mat3(modelMatrix) * normal);
+      vec3 pos = position;
+
+      float h = clamp((position.y - uMinY) / uRange, 0.0, 1.0);
+      float waveFactor = pow(1.0 - h, 1.5);
+
+      pos.x += sin(uTime * 2.5 + position.z * 3.0 + uOffset) * 0.03 * waveFactor;
+      pos.z += cos(uTime * 2.0 + position.x * 3.0 + uOffset) * 0.03 * waveFactor;
+
+      gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(pos, 1.0);
+    }
+  `;
+
+
+        const toonVertexShader = `
+    varying vec2 vUv;
+    varying vec3 vNormal;
+
+    void main() {
+      vUv = uv;
+      vNormal = normalize(mat3(modelMatrix) * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+
+        const toonFragmentShader = `
+    precision mediump float;
+
+    uniform sampler2D uTexture;
+    uniform vec3 uColor;
+    uniform float uUseMap;
+    uniform vec3 uLightDir;
+
+    varying vec2 vUv;
+    varying vec3 vNormal;
+
+    void main() {
+      vec3 color = uColor;
+      if (uUseMap > 0.5) color *= texture2D(uTexture, vUv).rgb;
+
+      // lambert diffuse shading
+      vec3 N = normalize(vNormal);
+      vec3 L = normalize(uLightDir);
+      float diffuse = max(dot(N, L), 0.0);
+
+      // toon shading แบบขั้นบันได
+      diffuse = smoothstep(0.3, 0.5, diffuse);
+
+      // ambient
+      float ambient = 0.6;
+
+      gl_FragColor = vec4(color * (diffuse + ambient), 1.0);
+    }
+  `;
+
+
+        const metalVertexShader = `
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vPosW;
+
+    void main() {
+      vUv = uv;
+      vNormal = normalize(mat3(modelMatrix) * normal);
+      vPosW = (modelMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+    }
+  `;
+
+        const metalFragmentShader = `
+    precision mediump float;
+
+    uniform sampler2D uTexture;
+    uniform vec3 uColor;
+    uniform float uUseMap;
+    uniform vec3 uLightDir;
+
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vPosW;
+
+    void main() {
+      vec3 baseColor = uColor;
+      if (uUseMap > 0.5) baseColor *= texture2D(uTexture, vUv).rgb;
+
+      vec3 N = normalize(vNormal);
+      vec3 L = normalize(uLightDir);
+
+      // Lambert diffuse
+      float diffuse = max(dot(N, L), 0.0);
+      float ambient = 0.35;
+
+      // Phong specular
+      vec3 R = reflect(-L, N);
+      vec3 V = normalize(cameraPosition - vPosW);
+      float specular = pow(max(dot(R, V), 0.0), 32.0) * 0.9;
+      specular = smoothstep(0.4, 0.6, specular);
+
+      vec3 color = baseColor * (diffuse * 0.8 + ambient) + vec3(specular * 0.9);
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `;
+
+
+        const outlineVertexShader = `
+    uniform float uOutline;
+
+    void main() {
+      vec3 pos = position;
+      pos += normal * uOutline;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+  `;
+
+        const outlineFragmentShader = `
+    precision mediump float;
+
+    void main() {
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+  `;
+
+
+        function toSRGBColor(c) {
+            const col = c.clone();
+            col.convertLinearToSRGB();
+            return new THREE.Vector3(col.r, col.g, col.b);
+        }
+
+        function makeShaderUniforms(map, color, extra) {
+            return Object.assign({
+                uTexture: { value: map },
+                uUseMap: { value: map ? 1.0 : 0.0 },
+                uColor: { value: toSRGBColor(color) },
+                uLightDir: uniforms.uLightDir
+            }, extra || {});
+        }
+
+        function makeCurtainMaterial(geometry, node, map, color) {
+            geometry.computeBoundingBox();
+            const minY = geometry.boundingBox.min.y;
+            const maxY = geometry.boundingBox.max.y;
+            return new THREE.ShaderMaterial({
+                vertexShader: curtainVertexShader,
+                fragmentShader: toonFragmentShader,
+                uniforms: makeShaderUniforms(map, color, {
+                    uTime: uniforms.uTime,
+                    uMinY: { value: minY },
+                    uRange: { value: Math.max(maxY - minY, 0.0001) },
+                    uOffset: { value: node.position.x * 12.34 + node.position.z * 4.71 }
+                }),
+                side: THREE.DoubleSide
+            });
+        }
+
+        function makeToonMaterial(map, color) {
+            return new THREE.ShaderMaterial({
+                vertexShader: toonVertexShader,
+                fragmentShader: toonFragmentShader,
+                uniforms: makeShaderUniforms(map, color),
+                side: THREE.DoubleSide
+            });
+        }
+
+        function makeMetalMaterial(map, color) {
+            return new THREE.ShaderMaterial({
+                vertexShader: metalVertexShader,
+                fragmentShader: metalFragmentShader,
+                uniforms: makeShaderUniforms(map, color),
+                side: THREE.DoubleSide
+            });
+        }
+
+        const outlineMaterial = new THREE.ShaderMaterial({
+            vertexShader: outlineVertexShader,
+            fragmentShader: outlineFragmentShader,
+            uniforms: { uOutline: { value: OUTLINE_WIDTH } },
+            side: THREE.BackSide
+        });
+
+
+        let modelRoot = null;
+
+        let projectsButtonObj = null;
+        let aboutmeButtonObj = null;
+        let pictureButtonObj = null;
+
+        let projectsTargetObj = null;
+        let aboutmeTargetObj = null;
+        let pictureTargetObj = null;
+
+        let projectsButton2Obj = null;
+        let aboutmeBMButtonObj = null;
+        let pictureButton2Obj = null;
+
+        const defaultCamPos = new THREE.Vector3();
+        const defaultCamTarget = new THREE.Vector3();
+
+
+        const loader = new THREE.GLTFLoader();
+        const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+        loader.setDRACOLoader(dracoLoader);
+
+        loader.load('https://media.githubusercontent.com/media/chayaponsaenthavee/Ball/main/Store22.glb', (gltf) => {
+            const model = gltf.scene;
+            modelRoot = model;
+            model.rotation.y = -Math.PI / 2;
+
+            const outlineQueue = [];
+
+            model.traverse((node) => {
+                if (!node.isMesh) return;
+
+                const originalMaterial = node.material;
+                const hasSingle = originalMaterial && !Array.isArray(originalMaterial);
+                const originalMap = hasSingle && originalMaterial.map ? originalMaterial.map : null;
+                const originalColor = hasSingle && originalMaterial.color ? originalMaterial.color.clone() : new THREE.Color(0xffffff);
+
+                const lowerName = node.name.toLowerCase();
+                const isCurtain = CURTAIN_OBJECT_NAMES.includes(node.name);
+                const isAirConditioner = lowerName.includes('ac') || lowerName.includes('air') || lowerName.includes('conditioner');
+                const isExcluded = EXCLUDE_NAMES.includes(node.name);
+
+                node.castShadow = !isCurtain;
+                node.receiveShadow = !isCurtain;
+
+                /* ผ้าม่านพริ้ว (vertex shader) */
+                if (isCurtain) {
+                    node.visible = true;
+                    node.frustumCulled = false;
+
+                    if (!isAirConditioner && !isExcluded && node.geometry) {
+                        node.geometry = node.geometry.clone();
+                        node.material = makeCurtainMaterial(node.geometry, node, originalMap, originalColor);
+                    } else if (node.material) {
+                        node.material.side = THREE.DoubleSide;
+                        node.material.needsUpdate = true;
+                    }
+                }
+
+
+                if (!isCurtain && node.name.startsWith('Cylinder')) {
+                    node.material = new THREE.MeshStandardMaterial({
+                        map: originalMap,
+                        color: originalColor,
+                        metalness: 0.9,
+                        roughness: 0.2,
+                        side: THREE.DoubleSide
+                    });
+                    node.material.needsUpdate = true;
+                }
+
+
+                if (!isCurtain &&
+                    (
+                        node.name.startsWith('Icosphere') ||
+                        (node.name.startsWith('Cube') && !node.name.startsWith('Cube021') && !node.name.startsWith('Cube019')) ||
+                        lowerName.includes('bottle') ||
+                        lowerName.includes('glass') ||
+                        lowerName.includes('arcade')
+                    )
+                ) {
+                    node.material = makeToonMaterial(originalMap, originalColor);
+                    outlineQueue.push(node);
+                }
+
+
+                if (node.name === 'Text001') projectsButtonObj = node;
+                if (node.name === 'Text002') aboutmeButtonObj = node;
+                if (node.name === 'Text005') pictureButtonObj = node;
+                if (node.name === 'Cube022') projectsTargetObj = node;
+                if (node.name === 'Cube020') aboutmeTargetObj = node;
+                if (node.name === 'Plane038') pictureTargetObj = node;
+                if (node.name === 'Text009') projectsButton2Obj = node;
+                if (node.name === 'Text007') aboutmeBMButtonObj = node;
+                if (node.name === 'Text008') pictureButton2Obj = node;
+            });
+
+
+            if (OUTLINE_WIDTH > 0) {
+                outlineQueue.forEach((node) => {
+                    const outlineMesh = new THREE.Mesh(node.geometry, outlineMaterial);
+                    outlineMesh.userData.isOutline = true;
+                    node.add(outlineMesh);
+                });
+            }
+
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+
+            model.position.sub(center);
+
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+            const cameraZ = Math.abs(maxDim / (2 * Math.tan(fov / 2))) * .8;
+
+            camera.position.set(0, 0, cameraZ);
+            controls.target.set(0, 0, 0);
+            controls.update();
+
+            defaultCamPos.copy(camera.position);
+            defaultCamTarget.copy(controls.target);
+
+            directionalLight.shadow.camera.left = -maxDim;
+            directionalLight.shadow.camera.right = maxDim;
+            directionalLight.shadow.camera.top = maxDim;
+            directionalLight.shadow.camera.bottom = -maxDim;
+            directionalLight.shadow.camera.updateProjectionMatrix();
+
+            scene.add(model);
+            requestAnimationFrame(animate);
+
+        }, undefined, (error) => {
+            console.error('เกิดข้อผิดพลาดในการโหลดโมเดล:', error);
+        });
+
+
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+
+        renderer.domElement.addEventListener('click', onPick);
+
+        function onPick(e) {
+            if (!modelRoot) return;
+
+            const r = renderer.domElement.getBoundingClientRect();
+            const x = (e.clientX ?? e.touches[0].clientX) - r.left;
+            const y = (e.clientY ?? e.touches[0].clientY) - r.top;
+            pointer.x = (x / r.width) * 2 - 1;
+            pointer.y = -(y / r.height) * 2 + 1;
+
+            raycaster.setFromCamera(pointer, camera);
+            const hits = raycaster.intersectObject(modelRoot, true)
+                .filter((h) => !h.object.userData.isOutline);
+            const hit = hits[0];
+
+            const debugBox = document.getElementById('debugBox');
+            debugBox.style.display = 'block';
+
+            if (hit == null) {
+                closeInfoPanel();
+                debugBox.innerText = 'รีเซ็ตกล้อง';
+                return;
+            }
+
+            const obj = hit.object;
+            debugBox.innerText = 'คลิกโดน: ' + obj.name;
+
+            if (obj === projectsButtonObj) {
+                focusOnObject(projectsTargetObj, 2.2);
+                openInfoPanel('<h2>Projects</h2><p>รายละเอียดผลงานและโปรเจกต์</p>');
+            } else if (obj === aboutmeButtonObj) {
+                focusOnObject(aboutmeTargetObj, 2.2);
+                openInfoPanel('<h2>About Me</h2><p>ข้อมูลประวัติส่วนตัว</p>');
+            } else if (obj === pictureButtonObj) {
+                focusOnObject(pictureTargetObj, 1.4);
+                openInfoPanel('<h2>Picture Gallery</h2><p>รูปภาพ</p>');
+            } else if (
+                obj === projectsButton2Obj ||
+                obj === aboutmeBMButtonObj ||
+                obj === pictureButton2Obj
+            ) {
+                closeInfoPanel();
+            }
+        }
+
+
+        let camGoalPos = null;
+        let camGoalTarget = null;
+
+        function focusOnObject(obj, distanceMultiplier = 2.2) {
+            if (!obj) return;
+
+            const box = new THREE.Box3().setFromObject(obj);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z, .2);
+
+            const dir = new THREE.Vector3()
+                .subVectors(camera.position, controls.target)
+                .normalize();
+
+            const targetCamPos = center.clone().add(
+                dir.multiplyScalar(maxDim * distanceMultiplier)
+            );
+
+            flyCameraTo(targetCamPos, center);
+        }
+
+        function flyCameraTo(targetPos, targetLook) {
+            camGoalPos = targetPos.clone();
+            camGoalTarget = targetLook.clone();
+            controls.enabled = false;
+        }
+
+        function resetCamera() {
+            flyCameraTo(defaultCamPos, defaultCamTarget);
+        }
+
+        function updateCameraFly() {
+            if (!camGoalPos) return;
+
+            camera.position.lerp(camGoalPos, 0.03);
+            controls.target.lerp(camGoalTarget, 0.03);
+
+            if (camera.position.distanceTo(camGoalPos) < 0.001 &&
+                controls.target.distanceTo(camGoalTarget) < 0.001) {
+                camera.position.copy(camGoalPos);
+                controls.target.copy(camGoalTarget);
+                camGoalPos = null;
+                camGoalTarget = null;
+                controls.enabled = true;
+            }
+        }
+
+
+        const infoPanelEl = document.getElementById('infoPanel');
+        const infoPanelContentEl = document.getElementById('infoPanelContent');
+        const hintEl = document.getElementById('hint');
+
+        function openInfoPanel(html) {
+            infoPanelContentEl.innerHTML = html;
+            infoPanelEl.style.display = 'block';
+            if (hintEl) hintEl.style.display = 'none';
+        }
+
+        function closeInfoPanel() {
+            infoPanelEl.style.display = 'none';
+            resetCamera();
+            if (hintEl) hintEl.style.display = 'block';
+        }
+
+        addEventListener('resize', () => {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+            renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        });
+
+
+        function animate(time) {
+            uniforms.uTime.value = time * 0.001;
+            updateCameraFly();
+            controls.update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+
+</html>
